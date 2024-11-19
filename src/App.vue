@@ -12,9 +12,7 @@ const themeOverrides = {
 
 <template>
   <n-config-provider :theme-overrides="themeOverrides">
-    <main class="container">
-      <RouterView />
-    </main>
+    <RouterView />
 </n-config-provider>
 </template>
 
