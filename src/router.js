@@ -9,6 +9,11 @@ const routes = [
   { path: '/', component: Index },
   { path: '/config', component: Config },
   { path: '/preview', component: Preview },
+  {
+    path: '/delete-progress',
+    name: 'DeleteProgress',
+    component: () => import('./page/DeleteProgress.vue')
+  },
 ]
 
 const router = createRouter({

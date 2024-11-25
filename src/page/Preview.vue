@@ -198,6 +198,8 @@ const deleteFiles = async (recycle) => {
       negativeText: '取消',
       onPositiveClick: async () => {
         await store.deleteFiles(selections, recycle);
+        // 跳转到删除进度页面
+        router.push('/delete-progress');
       }
     });
   } catch (error) {

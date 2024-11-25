@@ -62,6 +62,8 @@ export default defineStore('main', () => {
     other: { count: 0, size: 0 }
   });
   const selections = ref({});
+  const filesToDelete = ref([]);
+  const recycleDelete = ref(false);
 
   // 停止处理
   const stopProcess = () => {
@@ -323,39 +325,49 @@ export default defineStore('main', () => {
     try {
       console.log('Current selections:', selections);
       
-      const filesToDelete = [];
+      const files = [];
       duplicateGroups.value.forEach((group, groupIndex) => {
         group.files.forEach((file, fileIndex) => {
           if (!selections.value[groupIndex]?.[fileIndex]) {
-            filesToDelete.push(file);
+            files.push(file);
           }
         });
       });    
 
-      console.log('Files to delete:', filesToDelete);
+      console.log('Files to delete:', files);
+      setFilesToDelete(files);
+      setRecycleDelete(recycle);
 
-      // 直接删除文件
-      for (const file of filesToDelete) {
-        try {
-          if(recycle) {
-            console.log('Moving to recycle bin:', file);
-            await invoke('move_to_recycle_bin', { filePath: file });
-          }
-          else {
-            console.log('Permanently deleting:', file);
-            await remove(file);
-          }
-        } catch (error) {
-          console.error(`Failed to delete file: ${file}`, error);
-        }
-      }
-      
-      // 重新扫描文件
-      await process();
     } catch (error) {
       console.error('Error during deleting files:', error);
     }
   }
+
+  async function deleteFile(file) {
+    try {      
+      if(recycleDelete.value) {
+        await invoke('move_to_recycle_bin', { filePath: file });
+      } else {
+        await remove(file);
+      }
+    } catch (error) {
+      console.error(`Failed to delete file: ${file}`, error);
+      throw error;
+    }
+  }
+
+  function setFilesToDelete(files) {
+    filesToDelete.value = files;
+  }
+
+  function setRecycleDelete(recycle) {
+    recycleDelete.value = recycle;
+  }
+
+  function getFilesToDelete() {
+    return filesToDelete.value;
+  }
+
 
   return { 
     includeDirs, 
@@ -385,5 +397,8 @@ export default defineStore('main', () => {
     process,
     calculateFileStats,
     deleteFiles,
+    deleteFile,
+    getFilesToDelete,
+    setFilesToDelete,
   };
 });

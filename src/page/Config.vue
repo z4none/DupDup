@@ -111,9 +111,7 @@ const addPattern = () => {
 };
 
 const allTypesSelected = computed({
-  get: () => {
-    console.log(store.selectedTypes);
-    
+  get: () => {   
     return Object.values(store.selectedTypes).every(v => v === true);
   },
   set: (value) => {
