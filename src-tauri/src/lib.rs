@@ -3,10 +3,21 @@ mod commands {
     use sha2::{Digest, Sha256};
     use std::fs::File;
     use std::io::Read;
-    use std::ffi::OsStr;
-    use std::os::windows::ffi::OsStrExt;
     use std::path::Path;
-    use windows::{core::PCWSTR, Win32::Foundation::*, Win32::System::Com::*, Win32::UI::Shell::*};
+    use std::fs;
+
+    #[cfg(target_os = "windows")]
+    use {
+        std::ffi::OsStr,
+        std::os::windows::ffi::OsStrExt,
+        windows::{core::PCWSTR, Win32::Foundation::*, Win32::System::Com::*, Win32::UI::Shell::*}
+    };
+
+    #[cfg(target_os = "macos")]
+    use std::process::Command;
+
+    #[cfg(target_os = "linux")]
+    use std::process::Command;
 
     #[tauri::command]
     pub fn greet(name: &str) -> String {
@@ -31,37 +42,33 @@ mod commands {
         Ok(format!("{:x}", hash))
     }
 
+    #[cfg(target_os = "windows")]
     #[tauri::command]
     pub fn move_to_recycle_bin(file_path: &str) -> Result<(), String> {
-        // 检查文件是否存在
         if !Path::new(file_path).exists() {
             return Err(format!("File not found: {}", file_path));
         }
 
-        // 将文件路径转换为宽字符串，添加双空字符结尾
         let wide_path: Vec<u16> = OsStr::new(file_path)
             .encode_wide()
             .chain(std::iter::once(0))
-            .chain(std::iter::once(0))  // 添加第二个空字符
+            .chain(std::iter::once(0))
             .collect();
 
         unsafe {
-            // 初始化 COM
             let _com = CoInitializeEx(None, COINIT_APARTMENTTHREADED).map_err(|e| e.to_string())?;
 
-            // 准备 SHFILEOPSTRUCTW 结构
             let mut file_op = SHFILEOPSTRUCTW {
                 hwnd: HWND(0),
                 wFunc: FO_DELETE,
                 pFrom: PCWSTR(wide_path.as_ptr()),
                 pTo: PCWSTR::null(),
-                fFlags: (FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT) as u16,
+                fFlags: (FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT).0 as u16,
                 fAnyOperationsAborted: BOOL(0),
                 hNameMappings: std::ptr::null_mut(),
                 lpszProgressTitle: PCWSTR::null(),
             };
 
-            // 执行文件操作
             let result = SHFileOperationW(&mut file_op);
 
             if result != 0 {
@@ -76,6 +83,59 @@ mod commands {
             Ok(())
         }
     }
+
+    #[cfg(target_os = "macos")]
+    #[tauri::command]
+    pub fn move_to_recycle_bin(file_path: &str) -> Result<(), String> {
+        if !Path::new(file_path).exists() {
+            return Err(format!("File not found: {}", file_path));
+        }
+
+        let status = Command::new("osascript")
+            .arg("-e")
+            .arg(format!(
+                "tell application \"Finder\" to delete POSIX file \"{}\"",
+                file_path
+            ))
+            .status()
+            .map_err(|e| e.to_string())?;
+
+        if !status.success() {
+            return Err(format!("Failed to move file to trash: {}", file_path));
+        }
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tauri::command]
+    pub fn move_to_recycle_bin(file_path: &str) -> Result<(), String> {
+        if !Path::new(file_path).exists() {
+            return Err(format!("File not found: {}", file_path));
+        }
+
+        let status = Command::new("gio")
+            .arg("trash")
+            .arg(file_path)
+            .status()
+            .map_err(|e| e.to_string())?;
+
+        if !status.success() {
+            return Err(format!("Failed to move file to trash: {}", file_path));
+        }
+
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub async fn delete_file(file_path: &str) -> Result<(), String> {
+        if !Path::new(file_path).exists() {
+            return Err(format!("File not found: {}", file_path));
+        }
+
+        fs::remove_file(file_path).map_err(|e| format!("Failed to delete file: {} ({})", file_path, e))?;
+        Ok(())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -85,7 +145,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![greet, calculate_file_hash, move_to_recycle_bin])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            calculate_file_hash,
+            move_to_recycle_bin,
+            delete_file
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
