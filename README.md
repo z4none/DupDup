@@ -13,6 +13,11 @@ DupDup 是一个跨平台的桌面应用程序，帮助用户高效地识别和�
 
 ## 🚀 快速开始
 
+### 截图
+
+<img src="https://github.com/z4none/DupDup/blob/main/screenshot/1.png?raw=true" width="300" />
+<img src="https://github.com/z4none/DupDup/blob/main/screenshot/2.png?raw=true" width="300" />
+
 ### 系统要求
 
 - Windows 7 及以上
