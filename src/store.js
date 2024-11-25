@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
-import { readDir, stat } from '@tauri-apps/plugin-fs';
+import { readDir, stat, remove } from '@tauri-apps/plugin-fs';
 import { join } from '@tauri-apps/api/path';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -44,6 +44,14 @@ export default defineStore('main', () => {
   const fileTypes = ref({ ...defaultFileTypes });
   const processing = ref(false);
   const stopFlag = ref(false);
+  const selectedTypes = ref({
+    video: true,
+    audio: true,
+    image: true,
+    document: true,
+    archive: true,
+    other: false
+  });
   const fileStats = ref({
     total: { count: 0, size: 0 },
     video: { count: 0, size: 0 },
@@ -53,6 +61,7 @@ export default defineStore('main', () => {
     archive: { count: 0, size: 0 },
     other: { count: 0, size: 0 }
   });
+  const selections = ref({});
 
   // 停止处理
   const stopProcess = () => {
@@ -210,14 +219,14 @@ export default defineStore('main', () => {
       }
 
       console.log('files before type filter:', files.value);
-
-      // 如果指定了文件类型过滤，应用过滤
-      // if (selectedTypes) {
-      //   files.value = files.value.filter(file => {
-      //     const type = getFileType(file);
-      //     return selectedTypes[type];
-      //   });
-      // }
+      
+      if (Object.keys(selectedTypes.value).length > 0) {
+        const filteredFiles = files.value.filter(filePath => {
+          const type = getFileType(filePath);
+          return selectedTypes.value[type];
+        });
+        files.value = filteredFiles;
+      }
 
       console.log('files after type filter:', files.value);
 
@@ -310,6 +319,44 @@ export default defineStore('main', () => {
     });
   }
 
+  async function deleteFiles(selections, recycle = false) {
+    try {
+      console.log('Current selections:', selections);
+      
+      const filesToDelete = [];
+      duplicateGroups.value.forEach((group, groupIndex) => {
+        group.files.forEach((file, fileIndex) => {
+          if (!selections.value[groupIndex]?.[fileIndex]) {
+            filesToDelete.push(file);
+          }
+        });
+      });    
+
+      console.log('Files to delete:', filesToDelete);
+
+      // 直接删除文件
+      for (const file of filesToDelete) {
+        try {
+          if(recycle) {
+            console.log('Moving to recycle bin:', file);
+            await invoke('move_to_recycle_bin', { filePath: file });
+          }
+          else {
+            console.log('Permanently deleting:', file);
+            await remove(file);
+          }
+        } catch (error) {
+          console.error(`Failed to delete file: ${file}`, error);
+        }
+      }
+      
+      // 重新扫描文件
+      await process();
+    } catch (error) {
+      console.error('Error during deleting files:', error);
+    }
+  }
+
   return { 
     includeDirs, 
     excludePatterns,
@@ -317,6 +364,7 @@ export default defineStore('main', () => {
     duplicateGroups,
     currentFile,
     progress,
+    selectedTypes,
     fileTypes,
     processing,
     stopFlag,
@@ -335,6 +383,7 @@ export default defineStore('main', () => {
     removeIncludeDir,
     collectFiles,
     process,
-    calculateFileStats
+    calculateFileStats,
+    deleteFiles,
   };
 });

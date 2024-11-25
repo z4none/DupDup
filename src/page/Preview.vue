@@ -18,22 +18,28 @@
           >
             <div class="font-medium">{{ typeNames[type] || type }}</div>
             <div class="text-gray-600">
-              {{ stat.count }} 个文件，{{ formatFileSize(stat.size).formatted }}
+              {{ stat.count / 2 }} 个文件，{{ formatFileSize(stat.size / 2).formatted }}
             </div>
           </div>
         </div>
       </div>
       <div class="flex-1">
         <div class="flex space-x-2 mb-2">      
-          <n-button size="small" @click="selectFirstInGroups">选择每组第一个</n-button>
-          <n-button size="small" @click="selectSecondInGroups">选择每组第二个</n-button>
+          <n-button size="small" @click="selectFirstInGroups">保留每组第一个</n-button>
+          <n-button size="small" @click="selectLastInGroups">保留每组最后一个</n-button>
           <span class="flex-1"></span>
           <n-button 
             size="small" 
             type="primary" 
-            @click="keepAllSelected" 
+            @click="deleteFiles(true)" 
             :disabled="!hasAnySelection"
-          >仅保留选中项</n-button>
+          >移到回收站</n-button>
+          <n-button 
+            size="small" 
+            type="error" 
+            @click="deleteFiles(false)" 
+            :disabled="!hasAnySelection"
+          >直接删除</n-button>
         </div>
     
         <TransitionGroup 
@@ -87,9 +93,11 @@ import { useRouter } from 'vue-router';
 import { NButton, NCheckbox, NTooltip, NImage } from 'naive-ui';
 import { remove, readFile } from '@tauri-apps/plugin-fs';
 import useStore from '../store';
+import { useDialog } from 'naive-ui';
 
 const router = useRouter();
 const store = useStore();
+const dialog = useDialog();
 const thumbnails = ref(new Map());
 
 const isImageFile = (filePath) => {
@@ -152,8 +160,11 @@ const init = () => {
   }
   
   // 初始化选择状态
-  selections.value = store.duplicateGroups.map(group =>
-    Array(group.files.length).fill(false)
+  selections.value = store.duplicateGroups.map(group => {
+      let arr = Array(group.files.length).fill(false);
+      arr[0] = true;
+      return arr;
+    }
   );
 
   // 加载所有组的缩略图
@@ -177,45 +188,20 @@ const hasAnySelection = computed(() => {
   return selections.value.some((groupSelections, index) => hasSelection(index));
 });
 
-const keepSelected = async (groupIndex) => {
-  const group = store.duplicateGroups[groupIndex];
-  const toDelete = group.files.filter((_, i) => !selections.value[groupIndex][i]);
-  
-  try {
-    // 删除未选中的文件
-    for (const file of toDelete) {
-      await remove(file);
-    }
-    
-    // 更新重复文件组
-    const remainingFiles = group.files.filter((_, i) => selections.value[groupIndex][i]);
-    if (remainingFiles.length > 1) {
-      store.duplicateGroups[groupIndex].files = remainingFiles;
-    } else {
-      // 如果组内只剩一个文件，删除整个组
-      store.duplicateGroups.splice(groupIndex, 1);
-    }
-    
-    // 更新选择状态
-    if (store.duplicateGroups.length > 0) {
-      // selections.value = store.duplicateGroups.map(group => 
-      //   Array(group.files.length).fill(false)
-      // );
-    } else {
-      // 如果没有重复文件组了，返回配置页面
-      router.push('/config');
-    }
-  } catch (error) {
-    console.error('Error processing files:', error);
-  }
-};
 
-const keepAllSelected = async () => {
-  // 从最后一组开始处理，这样不会影响前面组的索引
-  for (let i = store.duplicateGroups.length - 1; i >= 0; i--) {
-    if (hasSelection(i)) {
-      await keepSelected(i);
-    }
+const deleteFiles = async (recycle) => {
+  try {    
+    dialog.warning({
+      title: '警告',
+      content: recycle ? '将重复文件移动到回收站，确定要继续吗？' : '直接删除文件将无法恢复，确定要继续吗？',
+      positiveText: '确定',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        await store.deleteFiles(selections, recycle);
+      }
+    });
+  } catch (error) {
+    console.error('Failed to delete files:', error);
   }
 };
 
@@ -229,13 +215,13 @@ const selectFirstInGroups = () => {
   });
 };
 
-const selectSecondInGroups = () => {
+const selectLastInGroups = () => {
   store.duplicateGroups.forEach((group, groupIndex) => {
     if (!selections.value[groupIndex]) {
       selections.value[groupIndex] = new Array(group.files.length).fill(false);
     }
-    // 如果组内至少有两个文件，选择第二个文件，取消选择其他文件
-    selections.value[groupIndex] = selections.value[groupIndex].map((_, index) => index === 1 && group.files.length > 1);
+    // 如果组内至少有两个文件，选择最后一个，取消选择其他文件
+    selections.value[groupIndex] = selections.value[groupIndex].map((_, index) => index === group.files.length - 1 && group.files.length > 1);
   });
 };
 </script>

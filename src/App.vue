@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import { NConfigProvider } from 'naive-ui'
+import { NConfigProvider, NDialogProvider } from 'naive-ui'
 
 /**
  * js 文件下使用这个做类型提示
@@ -12,7 +12,9 @@ const themeOverrides = {
 
 <template>
   <n-config-provider :theme-overrides="themeOverrides">
-    <RouterView />
+    <n-dialog-provider>
+      <RouterView />
+    </n-dialog-provider>
 </n-config-provider>
 </template>
 

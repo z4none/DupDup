@@ -20,12 +20,12 @@
         <div class="text-lg mb-2">要扫描的文件类型</div>
         <n-space>
           <n-checkbox v-model:checked="allTypesSelected" @update:checked="toggleAllTypes">所有</n-checkbox>
-          <n-checkbox v-model:checked="selectedTypes.video">视频</n-checkbox>
-          <n-checkbox v-model:checked="selectedTypes.audio">音频</n-checkbox>
-          <n-checkbox v-model:checked="selectedTypes.image">图片</n-checkbox>
-          <n-checkbox v-model:checked="selectedTypes.document">文档</n-checkbox>
-          <n-checkbox v-model:checked="selectedTypes.archive">压缩包</n-checkbox>
-          <n-checkbox v-model:checked="selectedTypes.other">其他</n-checkbox>
+          <n-checkbox v-model:checked="store.selectedTypes.video">视频</n-checkbox>
+          <n-checkbox v-model:checked="store.selectedTypes.audio">音频</n-checkbox>
+          <n-checkbox v-model:checked="store.selectedTypes.image">图片</n-checkbox>
+          <n-checkbox v-model:checked="store.selectedTypes.document">文档</n-checkbox>
+          <n-checkbox v-model:checked="store.selectedTypes.archive">压缩包</n-checkbox>
+          <n-checkbox v-model:checked="store.selectedTypes.other">其他</n-checkbox>
         </n-space>
       </div>
       <div class="mb-2 border bg-gray-50 p-3">
@@ -110,18 +110,11 @@ const addPattern = () => {
   }
 };
 
-const selectedTypes = ref({
-  video: true,
-  audio: true,
-  image: true,
-  document: true,
-  archive: true,
-  other: false
-});
-
 const allTypesSelected = computed({
   get: () => {
-    return Object.values(selectedTypes.value).every(v => v === true);
+    console.log(store.selectedTypes);
+    
+    return Object.values(store.selectedTypes).every(v => v === true);
   },
   set: (value) => {
     toggleAllTypes(value);
@@ -129,12 +122,12 @@ const allTypesSelected = computed({
 });
 
 const hasSelectedFileTypes = computed(() => {
-  return Object.values(selectedTypes.value).some(v => v)
+  return Object.values(store.selectedTypes).some(v => v)
 })
 
 const toggleAllTypes = (checked) => {
-  Object.keys(selectedTypes.value).forEach(key => {
-    selectedTypes.value[key] = checked;
+  Object.keys(store.selectedTypes).forEach(key => {
+    store.selectedTypes[key] = checked;
   });
 };
 
@@ -160,7 +153,7 @@ const process = async () => {
 
   try {
     // 过滤文件时考虑选中的文件类型
-    await store.process(selectedTypes.value);
+    await store.process(store.selectedTypes);
     if (store.duplicateGroups.length > 0) {
       router.push('/preview');
     }

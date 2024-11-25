@@ -18,10 +18,12 @@
     {
       "identifier": "fs:scope",
       "allow": [
-          {
-              "path": "**/*"
-          }
+        {
+          "path": "**/*"
+        }
       ]
-    }
+    },
+    "dialog:default",
+    "fs:default"
   ]
 }
