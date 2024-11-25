@@ -1,15 +1,13 @@
 <template>
   <div>     
-    <div class="p-2">
-      <div class="mb-4">
+    <div class="p-1">
+      <div class="mb-2 border bg-gray-50 p-3">
         <div class="text-lg mb-2">要扫描的目录</div>
         <n-space vertical>
-          <div v-for="dir in store.includeDirs" :key="dir" class="flex items-center">
+          <div v-for="dir in store.includeDirs" :key="dir" class="flex items-center hover:bg-gray-100 p-1 -ml-1 -mr-1">
             <div class="flex-1 text-ellipsis">{{ dir }}</div>
             <n-button circle tertiary type="error" size="small" @click="store.removeIncludeDir(dir)">
-
               <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="16" height="16" viewBox="0 0 512 512"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M289.94 256l95-95A24 24 0 0 0 351 127l-95 95l-95-95a24 24 0 0 0-34 34l95 95l-95 95a24 24 0 1 0 34 34l95-95l95 95a24 24 0 0 0 34-34z" /></svg>
-
             </n-button>
           </div>
         </n-space>
@@ -18,9 +16,10 @@
       
       
       
-      <div class="mb-4">
+      <div class="mb-2 border bg-gray-50 p-3">
         <div class="text-lg mb-2">要扫描的文件类型</div>
         <n-space>
+          <n-checkbox v-model:checked="allTypesSelected" @update:checked="toggleAllTypes">所有</n-checkbox>
           <n-checkbox v-model:checked="selectedTypes.video">视频</n-checkbox>
           <n-checkbox v-model:checked="selectedTypes.audio">音频</n-checkbox>
           <n-checkbox v-model:checked="selectedTypes.image">图片</n-checkbox>
@@ -29,29 +28,23 @@
           <n-checkbox v-model:checked="selectedTypes.other">其他</n-checkbox>
         </n-space>
       </div>
-      <div v-if="store.processing" class="mb-4">
-        <div class="mb-2">已扫描 {{ store.files.length }} 个文件</div>
-        <div class="mb-2 text-ellipsis">正在处理: {{ store.currentFile }}</div>
-        <n-progress type="line" :percentage="store.progress" :indicator-placement="'inside'" />
-      </div>      
-      
-      <div class="mb-4">
+      <div class="mb-2 border bg-gray-50 p-3">
         <div class="text-lg mb-2">排除的路径关键词</div>
-        <n-space vertical>
-          <div v-for="pattern in store.excludePatterns" :key="pattern" class="flex items-center">
+        <div class="border bg-gray-100 p-2 mb-2">
+          <div v-for="pattern in store.excludePatterns" :key="pattern" class="inline-flex items-center hover:bg-white p-1 m-1 transition-colors duration-200">
             <div class="flex-1">{{ pattern }}</div>
             <n-button circle tertiary type="error" size="small" @click="store.removeExcludePattern(pattern)">
               <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="16" height="16" viewBox="0 0 512 512"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M289.94 256l95-95A24 24 0 0 0 351 127l-95 95l-95-95a24 24 0 0 0-34 34l95 95l-95 95a24 24 0 1 0 34 34l95-95l95 95a24 24 0 0 0 34-34z" /></svg>
             </n-button>
           </div>
-        </n-space>
+        </div>
         <n-button type="primary" @click="showAddPatternDialog">添加</n-button>
         <n-modal v-model:show="showAddPatternDialogVisible">
           <n-card
             title="添加要排除的路径关键词"
             :bordered="false"
             size="small"
-            style="width: 600px;"
+            style="width: 500px;"
           >
             <n-input v-model:value="newPattern" placeholder="输入要排除的路径关键词" />
             <template #action>
@@ -61,11 +54,17 @@
         </n-modal>
       </div>
 
-      <n-space>
+      <div v-if="store.processing" class="mb-2 border bg-gray-50 p-3">
+        <div class="mb-2">已扫描 {{ store.files.length }} 个文件</div>
+        <div class="mb-2 text-ellipsis">正在处理: {{ store.currentFile }}</div>
+        <n-progress type="line" :percentage="store.progress" :indicator-placement="'inside'" />
+      </div>   
+
+      <n-space class="p-2">
         <n-button 
           @click="process" 
           :loading="store.processing"
-          :disabled="store.includeDirs.length === 0"
+          :disabled="store.includeDirs.length === 0 || !hasSelectedFileTypes"
           type="primary"
         >
           开始扫描
@@ -119,6 +118,25 @@ const selectedTypes = ref({
   archive: true,
   other: false
 });
+
+const allTypesSelected = computed({
+  get: () => {
+    return Object.values(selectedTypes.value).every(v => v === true);
+  },
+  set: (value) => {
+    toggleAllTypes(value);
+  }
+});
+
+const hasSelectedFileTypes = computed(() => {
+  return Object.values(selectedTypes.value).some(v => v)
+})
+
+const toggleAllTypes = (checked) => {
+  Object.keys(selectedTypes.value).forEach(key => {
+    selectedTypes.value[key] = checked;
+  });
+};
 
 const lastFile = computed(() => {
   if(store.files.length > 0) {

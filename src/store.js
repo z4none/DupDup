@@ -44,6 +44,15 @@ export default defineStore('main', () => {
   const fileTypes = ref({ ...defaultFileTypes });
   const processing = ref(false);
   const stopFlag = ref(false);
+  const fileStats = ref({
+    total: { count: 0, size: 0 },
+    video: { count: 0, size: 0 },
+    audio: { count: 0, size: 0 },
+    image: { count: 0, size: 0 },
+    document: { count: 0, size: 0 },
+    archive: { count: 0, size: 0 },
+    other: { count: 0, size: 0 }
+  });
 
   // 停止处理
   const stopProcess = () => {
@@ -175,7 +184,7 @@ export default defineStore('main', () => {
     }
   }
 
-  async function process(selectedTypes = null) {
+  async function process() {
     if (processing.value) return;
     
     processing.value = true;
@@ -203,12 +212,12 @@ export default defineStore('main', () => {
       console.log('files before type filter:', files.value);
 
       // 如果指定了文件类型过滤，应用过滤
-      if (selectedTypes) {
-        files.value = files.value.filter(file => {
-          const type = getFileType(file);
-          return selectedTypes[type];
-        });
-      }
+      // if (selectedTypes) {
+      //   files.value = files.value.filter(file => {
+      //     const type = getFileType(file);
+      //     return selectedTypes[type];
+      //   });
+      // }
 
       console.log('files after type filter:', files.value);
 
@@ -262,11 +271,43 @@ export default defineStore('main', () => {
         .sort((a, b) => b.files.length - a.files.length);
 
       progress.value = 100;
+      calculateFileStats();
     } catch (error) {
       console.error('Error during processing:', error);
     } finally {
       processing.value = false;
     }
+  }
+
+  const calculateFileStats = () => {
+    // 重置统计
+    Object.keys(fileStats.value).forEach(key => {
+      fileStats.value[key] = { count: 0, size: 0 };
+    });
+
+    // 遍历所有重复文件组进行统计
+    duplicateGroups.value.forEach(group => {
+      group.files.forEach(file => {
+        // 更新总计
+        fileStats.value.total.count++;
+        fileStats.value.total.size += group.size;
+
+        // 根据文件类型更新分类统计
+        let ext = file.split('.').pop()?.toLowerCase() || '';
+        let type = 'other';
+
+        if(ext.length) ext = '.' + ext;
+        
+        if (defaultFileTypes.video.includes(ext)) type = 'video';
+        else if (defaultFileTypes.audio.includes(ext)) type = 'audio';
+        else if (defaultFileTypes.image.includes(ext)) type = 'image';
+        else if (defaultFileTypes.document.includes(ext)) type = 'document';
+        else if (defaultFileTypes.archive.includes(ext)) type = 'archive';
+
+        fileStats.value[type].count++;
+        fileStats.value[type].size += group.size;
+      });
+    });
   }
 
   return { 
@@ -278,6 +319,8 @@ export default defineStore('main', () => {
     progress,
     fileTypes,
     processing,
+    stopFlag,
+    fileStats,
     stopProcess,
     isFileType,
     getFileType,
@@ -291,6 +334,7 @@ export default defineStore('main', () => {
     addIncludeDirs,
     removeIncludeDir,
     collectFiles,
-    process
+    process,
+    calculateFileStats
   };
 });
