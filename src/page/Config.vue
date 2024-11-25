@@ -87,12 +87,13 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NSpace, NCheckbox, NProgress, NInput, NModal, NCard } from 'naive-ui'
+import { NButton, NSpace, NCheckbox, NProgress, NInput, NModal, NCard, useDialog } from 'naive-ui'
 import { open } from '@tauri-apps/plugin-dialog';
 import useStore from '../store';
 
 const router = useRouter();
 const store = useStore();
+const dialog = useDialog();
 
 const showAddPatternDialogVisible = ref(false);
 const newPattern = ref('');
@@ -154,6 +155,14 @@ const process = async () => {
     await store.process(store.selectedTypes);
     if (store.duplicateGroups.length > 0) {
       router.push('/preview');
+    }
+    else {
+      dialog.success({
+        title: '未找到重复文件',
+        content: '扫描了 ' + store.files.length + ' 个文件，未找到重复文件。',
+        positiveText: '确定',
+        onPositiveClick: () => {}
+      });
     }
   } catch (error) {
     console.error('Error processing files:', error);
